@@ -1,0 +1,16 @@
+{
+  "name": "fastboot-runner",
+  "version": "0.0.1",
+  "description": "A fastboot running instance",
+  "main": "server.js",
+  "dependencies": {
+    "ember-fetch": "^8.0.1",
+    "fastboot-app-server": "^2.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Aad Versteden",
+  "license": "MIT"
+}
