@@ -1,29 +1,18 @@
 # fastboot-app-server Docker
 
-Run fastboot-app-server in Docker.
+This container aims to make it easy to get a Fastboot hosted version of your application running in Docker. It assumes you've installed `ember-cli-fastboot` in your application, with the appropriate configuration.
 
 ## Getting started
-
-_Getting started with fastboot-app-server Docker_
-
-This container aims to make it easy to get a Fastboot hosted version of your application running in Docker.
-
-The appropriate way to add the container is to install `ember-fastboot` and `ember-fetch` into your project.  This will ensure that when you create a build, it will contain the necessary sources for Fastboot to take over.  In your config/environment, make sure you add a key to ENV containing something like:
-
-    fastboot: {
-      hostWhitelist: ["localhost","redpencil.io"]
-    },
-
-When testing, you can just accept anything but that is a big no-no in production:
-
-    fastboot: {
-      hostWhitelist: [/.*/]
-    },
-
-Creating a nice fastboot build then boils down to something like the following:
-
+### Running your ember app
+```sh
+docker run --name my-app \
+    --link my-backend-container:backend \
+    -v /path/to/spa/dist:/app \
+    -d redpencil/fastboot-app-service
+```
+### Extending this image in your dockerfile
+```Dockerfile
     FROM madnificent/ember:3.18.0 as builder
-
     LABEL maintainer="info@redpencil.io"
 
     WORKDIR /app
@@ -34,20 +23,78 @@ Creating a nice fastboot build then boils down to something like the following:
 
     FROM redpencil/fastboot-app-server:dev
     COPY --from=builder /app/dist /app
+```
 
+## How-to guides
+### add the correct adapter for ember-data
+Fastboot-server needs to know where to patch requests to, if you're using ember data you can use the following application adapter to route the requests correctly. The BACKEND_URL global is provided by this image and routes to `http://backend`. So make sure to map that to the correct service.
+
+```js
+import JSONAPIAdapter from '@ember-data/adapter/json-api';
+import {inject as service} from '@ember/service';
+export default class ApplicationAdapter extends JSONAPIAdapter {
+  @service fastboot;
+
+  constructor(){
+    super(...arguments);
+    if (this.fastboot.isFastBoot) {
+      this.host = window.BACKEND_URL;
+    }
+  }
+}
+```
+
+### configure host whitelists
+For security you must specify a host whitelist, see [https://www.ember-fastboot.com/docs/user-guide#the-host-whitelist](fastboot docs) for more info.
+In your config/environment, make sure you add a key to ENV containing something like:
+```js
+    fastboot: {
+      hostWhitelist: ["localhost","redpencil.io"]
+    },
+```
+
+When testing, you can just accept anything but that is a big no-no in production:
+```js
+    fastboot: {
+      hostWhitelist: [/.*/]
+    },
+```
+### Configure environment variables in the frontend's container
+
+The environment variables have to be prefixed by `EMBER_` to be recognized by the service as variables to be matched. By using docker-compose, the service configuration will look like:
+```yaml
+# docker-compose.yml
+  services:
+    frontend:
+        environment:
+            EMBER_VAR_EXAMPLE: "example-value"
+```            
+
+### Configure the frontend's variables
+
+The frontend's configuration will use `{{VAR_EXAMPLE}}` as a placeholder that will be replaced by this service at runtime.
+```js 
+// config/environment.js
+
+    if (environment === 'production') {
+        ENV['VAR_EXAMPLE'] = '{{VAR_EXAMPLE}}'
+    }
+```
+
+### using this image in a semantic.works project
 Make a build of the application so we can wire it in the docker-compose.yml
-
+```sh
     docker build . -t fastboot-frontend-relance:dev
-
+```
 With that in place, we can wire all of this into the docker-compose.yml file
-
+```yaml
       fastboot:
         image: fastboot-frontend-relance:dev
         links:
-            - identifire:backend
-
+            - identifier:backend
+```
 Next up is the wiring in the dispatcher.ex
-
+```elixir
     defmodule Disptacher do
       use Matcher
 
@@ -75,39 +122,4 @@ Next up is the wiring in the dispatcher.ex
 
       last_match
     end
-
-Launch it all up and pages which don't need a backend will be handled by Fastboot.  Checkout the how-to guides for info on how to support ember-data.
-
-## How-to guides
-
-_Specific guides on how to use fastboot-app-server Docker_
-
-### Going to a different backend for Ember Data
-
-The backend service to be accessed is going to be different in fastboot than when running on the client.
-
-A client fetches the app and sends it requests to the same endpoint.  The fastboot proxy container doesn't have a backend attached to localhost and must query elsewhere.
-
-In order to mitigate this problem, the ember app has a window.BACKEND_URL set to "http://backend" when running in fastbooty.  This lets you set the backend host for ember-data in the application adapter.
-
-Create an application adapter in `/app/adapters/application.js` looking like:
-
-    import JSONAPIAdapter from '@ember-data/adapter/json-api';
-
-    export default class ApplicationAdapter extends JSONAPIAdapter {
-
-      constructor(){
-        super(...arguments);
-        this.host = ENV.backendHost;
-      }
-    }
-
-When running in fastboot, your adapter will now send requests to the API at `http://backend/`, which you can link to the container.
-
-## Reasoning
-
-_Background information about the approach we took_
-
-## API
-
-_Provided application interface_
+```
