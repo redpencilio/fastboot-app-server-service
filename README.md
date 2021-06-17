@@ -104,6 +104,28 @@ Create an application adapter in `/app/adapters/application.js` looking like:
 
 When running in fastboot, your adapter will now send requests to the API at `http://backend/`, which you can link to the container.
 
+
+### Configure environment variables in the frontend's container
+
+The environment variables have to be prefixed by `EMBER_` to be recognized by the service as variables to be matched. By using docker-compose, the service configuration will look like:
+
+    docker-compose.yml
+
+    frontend:
+        environment:
+            EMBER_VAR_EXAMPLE: "example-value"
+
+### Configure the frontend's variables
+
+The frontend's configuration will use `{{VAR_EXAMPLE}}` as a placeholder that will be replaced by this service at runtime.
+
+    config/environment.js
+
+    if (environment === 'production') {
+        ENV['VAR_EXAMPLE'] = '{{VAR_EXAMPLE}}'
+    }
+
+
 ## Reasoning
 
 _Background information about the approach we took_
