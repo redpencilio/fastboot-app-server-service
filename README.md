@@ -32,8 +32,7 @@ Creating a nice fastboot build then boils down to something like the following:
     COPY . .
     RUN ember build --environment production
 
-    FROM fastboot-app-server:dev
-
+    FROM redpencil/fastboot-app-server:dev
     COPY --from=builder /app/dist /app
 
 Make a build of the application so we can wire it in the docker-compose.yml
