@@ -17,7 +17,8 @@ fs.writeFileSync("/app/index.html", indexHtmlFile);
 let fastbootAppServer = new FastbootAppServer({
   port: 80,
   distPath: "/app/",
-  chunkedResponse: true,
+  chunkedResponse: false,
+  gzip: true,
   sandboxGlobals: { 
     BACKEND_URL: "http://backend/",
    }
