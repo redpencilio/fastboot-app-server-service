@@ -2,25 +2,25 @@ let FastbootAppServer = require('fastboot-app-server');
 const fs  = require('fs');
 
 // Docker Enviroment Variables
-let indexHtmlFile = fs.readFileSync("/app/index.html", "utf8");
-for( const envVar in process.env ) {
-  console.log(`Processing ${envVar}...`);
-  if( envVar.indexOf("EMBER_") === 0 ) {
-    console.log(`Replacing name ${envVar} with value ${process.env[envVar]}`);
-    indexHtmlFile = indexHtmlFile.replace( new RegExp(envVar, "g"), encodeURIComponent(process.env[envVar]) );
-  } else {
-    console.log(`Environment variable ${envVar} not recognized for replacement.  Only variables starting with EMBER_ are used.`);
-  }
+const PREFIX = "EMBER_";
+const EMBER_CONFIG = Object.entries(process.env)
+      .filter((key) => key.indexOf(PREFIX) === 0)
+      .map((key) => [key.slice(PREFIX.length), process.env[key]]);
+
+let indexHtml = fs.readFileSync("/app/index.html", "utf8");
+for (const [key, value] of EMBER_CONFIG) {
+  console.log(`Replacing name ${key} with value ${value}`);
+  indexHtml = indexHtml.replace( new RegExp(key, "g"), encodeURIComponent(value) );
 }
-fs.writeFileSync("/app/index.html", indexHtmlFile);
+fs.writeFileSync("/app/index.html", indexHtml);
 
 let fastbootAppServer = new FastbootAppServer({
   port: 80,
   distPath: "/app/",
   chunkedResponse: false,
   gzip: true,
-  sandboxGlobals: { 
-    BACKEND_URL: "http://backend/",
+  sandboxGlobals: {
+    BACKEND_URL: "http://backend",
    }
 });
 
