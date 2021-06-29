@@ -11,6 +11,7 @@ let indexHtml = fs.readFileSync("/app/index.html", "utf8");
 for (const [key, value] of EMBER_CONFIG) {
   console.log(`Replacing name ${key} with value ${value}`);
   indexHtml = indexHtml.replace( new RegExp(`{{${key}}}`, "g"), encodeURIComponent(value) );
+  indexHtml = indexHtml.replace( new RegExp(`%7B%7B${key}%7D%7D`, "g"), encodeURIComponent(value) );
 }
 fs.writeFileSync("/app/index.html", indexHtml);
 
