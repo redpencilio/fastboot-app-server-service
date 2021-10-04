@@ -12,6 +12,7 @@ docker run --name my-app \
 ```
 ### Extending this image in your dockerfile
 ```Dockerfile
+
     FROM madnificent/ember:3.18.0 as builder
     LABEL maintainer="info@redpencil.io"
 
@@ -21,7 +22,7 @@ docker run --name my-app \
     COPY . .
     RUN ember build --environment production
 
-    FROM redpencil/fastboot-app-server:dev
+    FROM redpencil/fastboot-app-server
     COPY --from=builder /app/dist /app
 ```
 
@@ -93,6 +94,7 @@ With that in place, we can wire all of this into the docker-compose.yml file
         links:
             - identifier:backend
 ```
+
 Next up is the wiring in the dispatcher.ex
 ```elixir
     defmodule Disptacher do
@@ -122,4 +124,4 @@ Next up is the wiring in the dispatcher.ex
 
       last_match
     end
-```
+
