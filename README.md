@@ -32,7 +32,7 @@ Creating a nice fastboot build then boils down to something like the following:
     COPY . .
     RUN ember build --environment production
 
-    FROM redpencil/fastboot-app-server:dev
+    FROM redpencil/fastboot-app-server
     COPY --from=builder /app/dist /app
 
 Make a build of the application so we can wire it in the docker-compose.yml
@@ -44,7 +44,7 @@ With that in place, we can wire all of this into the docker-compose.yml file
       fastboot:
         image: fastboot-frontend-relance:dev
         links:
-            - identifire:backend
+            - identifier:backend
 
 Next up is the wiring in the dispatcher.ex
 
