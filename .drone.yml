@@ -1,3 +1,4 @@
+---
 
 kind: pipeline
 type: docker
@@ -47,3 +48,16 @@ steps:
 trigger:
   event:
   - pull_request
+---
+kind: secret
+name: docker_username
+data: Do9BW4TEReoJ8FV5i2UkpJ8840iXyY9LNOA4qufGx5y3PWihrpUy
+---
+kind: secret
+name: docker_password
+data: 574Cwp9SL2SgGwyAEgUl2eheNkF/EUikXVzPQEhkGYYmUZ26k63KooNCA8IbtstBhkuZ8S+2A3QjeQgCUmOaVQ==
+---
+kind: signature
+hmac: ca706e2ad0538211d46694b56a654f2dc0a230787d9c4bd0322002692dc206b3
+
+...
