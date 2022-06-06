@@ -6,9 +6,14 @@ let fastbootAppServer = new FastbootAppServer({
   distPath: "/app/",
   chunkedResponse: false,
   gzip: true,
-  sandboxGlobals: {
-    BACKEND_URL: "http://backend",
-   }
+  log: true,
+  buildSandboxGlobals(defaultGlobals) {
+    return Object.assign(
+      {},
+      defaultGlobals,
+        {BACKEND_URL: "http://backend"}
+    );
+  },
 });
 
 fastbootAppServer.start();

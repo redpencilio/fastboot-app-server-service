@@ -4,8 +4,8 @@
   "description": "A fastboot running instance",
   "main": "server.js",
   "dependencies": {
-    "ember-fetch": "^8.0.1",
-    "fastboot-app-server": "^2.0.0"
+    "fastboot-app-server": "^3.3.0",
+    "ember-fetch": "^8.1.1"
   },
   "devDependencies": {},
   "scripts": {
