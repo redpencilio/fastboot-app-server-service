@@ -228,7 +228,7 @@ module.exports = function () {
 
 ```
 
-``` dockerfile
+``` diff
 
   FROM madnificent/ember:4.12.1-node_18 as builder
 
@@ -264,12 +264,12 @@ let fastbootAppServer = new FastbootAppServer({
         {BACKEND_URL: "http://backend"}
     );
   },
-  ...customConfig // your config,
+  ...customConfig // this is where your config gets included
 });
 
 ```
 
 > [!WARNING]  
-> If you override the buildSandboxGlobals function, you should probably include the BACKEND_URL like in the example above, since it allows fastboot to find your backend in a docker-compose 
+> If you override the `buildSandboxGlobals` function, you should probably include the `BACKEND_URL` like in the example above, since it allows fastboot to find your backend in a docker-compose 
 > setup. 
 
