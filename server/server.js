@@ -1,4 +1,3 @@
-const fs  = require('fs');
 const FastbootAppServer = require('fastboot-app-server');
 
 let fastbootAppServer = new FastbootAppServer({
