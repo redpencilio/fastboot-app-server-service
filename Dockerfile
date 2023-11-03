@@ -1,4 +1,4 @@
-FROM node:14
+FROM node:18
 
 ADD ./server/ /usr/src/app
 RUN cd /usr/src/app/; npm install
