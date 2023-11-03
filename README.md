@@ -1,19 +1,15 @@
-# fastboot-app-server Docker
+# fastboot-app-server-service
 
-This container aims to make it easy to get a Fastboot hosted version of your application running in Docker. It assumes you've installed `ember-cli-fastboot` in your application, with the appropriate configuration.
+Docker image to host your Ember Fastboot app.
 
 ## Getting started
-### Running your ember app
-```sh
-docker run --name my-app \
-    --link my-backend-container:backend \
-    -v /path/to/spa/dist:/app \
-    -d redpencil/fastboot-app-service
-```
-### Extending this image in your dockerfile
-```Dockerfile
+### Build an image to host your Ember Fastboot app
+Requires:
+- an Ember frontend app with `ember-cli-fastboot` installed
 
-    FROM madnificent/ember:3.18.0 as builder
+Add a Dockerfile with the following contents:
+```Dockerfile
+    FROM madnificent/ember:4.8.0 as builder
     LABEL maintainer="info@redpencil.io"
 
     WORKDIR /app
@@ -22,17 +18,126 @@ docker run --name my-app \
     COPY . .
     RUN ember build --environment production
 
-    FROM redpencil/fastboot-app-server
+    FROM redpencil/fastboot-app-server:1.1.0
     COPY --from=builder /app/dist /app
 ```
 
-## How-to guides
-### add the correct adapter for ember-data
-Fastboot-server needs to know where to patch requests to, if you're using ember data you can use the following application adapter to route the requests correctly. The BACKEND_URL global is provided by this image and routes to `http://backend`. So make sure to map that to the correct service.
+There are various ways to build a Docker image. For a production service we advise to setup automatic builds, but here we will build it locally. You can choose any name, but we will call ours 'my-fastboot-frontend'.
+
+From the root of your microservice folder execute the following command:
+```bash
+docker build -t my-fastboot-frontend .
+```
+
+Add the newly built service to your application stack in `docker-compose.yml`. Link the service HTTP requests must be sent to as `backend`.
+```yml
+version: ...
+services:
+  frontend:
+    image: my-fastboot-frontend
+    links:
+      - backend:backend
+  ...
+  backend:
+    ...
+```
+
+Launch the new container in your app
+```bash
+docker-compose up -d my-fastboot-frontend
+```
+
+## How-to
+### Wire this image in a semantic.works project
+Requires:
+  - 'Build an image to host your Ember fastboot app'
+  - a semantic.works stack, like mu-project
+
+Link the identifier service as `backend` for your frontend service in `docker-compose.yml`
+```yml
+version: ...
+services:
+  identifier:
+    image: semtech/mu-identifier
+    ...
+  frontend:
+    image: my-fastboot-frontend
+    links:
+      - identifier:backend
+  ...
+```
+
+Next, configure the dispatcher such that the HTML pages of the frontend are served, unless an Accept header is passed that is too restrictive.
+
+```elixir
+defmodule Dispatcher do
+  use Matcher
+
+  define_accept_types [
+    json: [ "application/json", "application/vnd.api+json" ],
+    html: [ "text/html", "application/xhtml+html" ],
+    any: [ "*/*" ]
+  ]
+
+  define_layers [ :static, :web_page, :api_services, :not_found ]
+
+  ###############
+  # STATIC
+  ###############
+
+  get "/assets/*path", %{ layer: :static } do
+    forward conn, path, "http://frontend/assets/"
+  end
+
+  get "/favicon.ico", %{ layer: :static } do
+    send_resp( conn, 404, "" )
+  end
+
+  #################
+  # FRONTEND PAGES
+  #################
+
+  get "/*path", %{ layer: :web_page, accept: %{ html: true } } do
+    forward conn, path, "http://frontend/"
+  end
+
+  ###############
+  # API SERVICES
+  ###############
+
+  # Configure other requests that should be sent to backend services
+  # like mu-cl-resources here. E.g.:
+  #
+  # get "/catalogs/*path", %{ layer: :api_services, accept: %{ json: true } } do
+  #   forward conn, path, "http://resources/catalogs/"
+  # end
+  #
+  # ...
+
+  #################
+  # NOT FOUND
+  #################
+  match "/*_", %{ layer: :not_found } do
+    send_resp( conn, 404, "Route not found.  See config/dispatcher.ex" )
+  end
+
+end
+```
+
+Note that the `web_page` layer is fairly early on because user agents which expect web pages tend to send requests accepting any content type (like `*/*`).
+
+Restart the dispatcher to enable the new rules
+
+```bash
+docker-compose restart dispatcher
+```
+### Configure the Ember Data adapter to send requests to the backend
+Fastboot-server is configured to patch requests to `http://backend`. This value is available as global through `window.BACKEND_URL`. If you're using Ember Data in your app, you can use the following application adapter to route the requests correctly to your backend.
 
 ```js
 import JSONAPIAdapter from '@ember-data/adapter/json-api';
-import {inject as service} from '@ember/service';
+import { inject as service } from '@ember/service';
+
 export default class ApplicationAdapter extends JSONAPIAdapter {
   @service fastboot;
 
@@ -45,83 +150,60 @@ export default class ApplicationAdapter extends JSONAPIAdapter {
 }
 ```
 
-### configure host whitelists
-For security you must specify a host whitelist, see [https://www.ember-fastboot.com/docs/user-guide#the-host-whitelist](fastboot docs) for more info.
-In your config/environment, make sure you add a key to ENV containing something like:
+### Configure an Ember application at runtime using environment variables
+The service can use environment variables to configure an Ember frontend build at runtime. This is typcially used for environment-specific (development, production, test, ...) configurations. On startup of the service, the environment variables prefixed with `EMBER_` will be used to fill in the values in `/app/index.html` with the value of the environment variables that match.
+
+#### Configuring placeholders in the Ember application
+Use placeholders like `{{MY_EXAMPLE}}` in the Ember configuration file `./config/environment.js` where values from an environment variable need to be filled in at runtime.
+
+```javascript
+if (environment === 'production') {
+    ENV.torii.providers['oauth2'].apiKey = '{{OAUTH_API_KEY}}'
+}
+```
+
+#### Set environment variables on the container
+Configure environment variables on the frontend service in `docker-compose.yml` containing the values to be replaced in the Ember configuration file. The environment variables need to be prefixed with `EMBER_`.
+
+E.g. for the placeholder `{{OAUTH_API_KEY}}` to be replaced, you need to configure an environment variable `EMBER_OAUTH_API_KEY`.
+
+```yml
+services:
+  frontend:
+    image: my-fastboot-frontend
+    environment:
+      EMBER_OAUTH_API_KEY: "my-api-key-for-production"
+```
+
+### Configure the host whitelists
+For security you must specify [a host whitelist of expected hosts](https://www.ember-fastboot.com/docs/user-guide#the-host-whitelist). On a deployed system, this is typically the domain your app is hosted on, while in development mode, it's `localhost`.
+
+Add the following contents in `config/enviroment.js` to support both scenarios:
 ```js
+module.exports = function (environment) {
+  const ENV = {
+    ...
     fastboot: {
-      hostWhitelist: ["localhost","redpencil.io"]
+      hostWhitelist: ['{{FASTBOOT_HOST}}']
     },
+    ...
+  }
+
+  if (environment === 'development') {
+    ENV.fastboot.hostWhitelist = ['/^localhost(:[0-9]*)?/'];
+    ...
+  }
+
+  ...
+};
 ```
 
-When testing, you can just accept anything but that is a big no-no in production:
-```js
-    fastboot: {
-      hostWhitelist: [/.*/]
-    },
+When deploying the app, configure the host via the `EMBER_FASTBOOT_HOST` environment variable on your container in `docker-compose.yml`:
+
+```yml
+services:
+  frontend:
+    image: my-fastboot-frontend
+    environment:
+      EMBER_FASTBOOT_HOST: "my.app-domain.org"
 ```
-### Configure environment variables in the frontend's container
-
-The environment variables have to be prefixed by `EMBER_` to be recognized by the service as variables to be matched. By using docker-compose, the service configuration will look like:
-```yaml
-# docker-compose.yml
-  services:
-    frontend:
-        environment:
-            EMBER_VAR_EXAMPLE: "example-value"
-```            
-
-### Configure the frontend's variables
-
-The frontend's configuration will use `{{VAR_EXAMPLE}}` as a placeholder that will be replaced by this service at runtime.
-```js 
-// config/environment.js
-
-    if (environment === 'production') {
-        ENV['VAR_EXAMPLE'] = '{{VAR_EXAMPLE}}'
-    }
-```
-
-### using this image in a semantic.works project
-Make a build of the application so we can wire it in the docker-compose.yml
-```sh
-    docker build . -t fastboot-frontend-relance:dev
-```
-With that in place, we can wire all of this into the docker-compose.yml file
-```yaml
-      fastboot:
-        image: fastboot-frontend-relance:dev
-        links:
-            - identifier:backend
-```
-
-Next up is the wiring in the dispatcher.ex
-```elixir
-    defmodule Disptacher do
-      use Matcher
-
-      define_accept_types [
-        json: [ "application/json", "application/vnd.api+json" ],
-        html: [ "text/html", "application/xhtml+html" ],
-        any: ["*/*"]
-      ]
-
-      @json %{ accept: %{ json: true } }
-      @html %{ accept: %{ html: true } }
-      @any %{ accept: %{ any: true } }
-
-      match "/favicon.ico", @any do
-        send_resp( conn, 404, "There is no favicon here" )
-      end
-
-      match "/assets/*path", @any do
-        Proxy.forward conn, path, "http://fastboot:3000/assets/"
-      end
-
-      match "/*path", @html do
-        Proxy.forward conn, path, "http://fastboot:3000/"
-      end
-
-      last_match
-    end
-
