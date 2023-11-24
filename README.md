@@ -207,3 +207,69 @@ services:
     environment:
       EMBER_FASTBOOT_HOST: "my.app-domain.org"
 ```
+### Customize the fastboot settings
+
+You may have special settings you want to pass to fastboot. This is done by adding a `config/fastboot.js` file to your app and copying it over to the fastboot server container.
+
+e.g.:
+
+``` javascript
+// config/fastboot.js
+module.exports = function () {
+  return {
+    buildSandboxGlobals(defaultGlobals) {
+      return Object.assign({}, defaultGlobals, {
+        SOME_CUSTOM_GLOBAL: "foo",
+        BACKEND_URL: "http://backend"
+      });
+    },
+  };
+};
+
+```
+
+``` diff
+
+  FROM madnificent/ember:4.12.1-node_18 as builder
+
+  LABEL maintainer="info@redpencil.io"
+
+  WORKDIR /app
+  COPY package.json .
+  RUN npm install
+  COPY . .
+  RUN ember build --environment production
+
+  FROM redpencil/fastboot-app-server
+  COPY --from=builder /app/dist /app
++ COPY --from=builder /app/config/fastboot.js /app
+```
+
+
+If you export a function, it will be called, and the resulting object will be spread out onto the
+default config. If it's an object, it will be used directly:
+
+
+``` javascript
+let fastbootAppServer = new FastbootAppServer({
+  port: 80,
+  distPath: "/app/",
+  chunkedResponse: false,
+  gzip: true,
+  log: true,
+  buildSandboxGlobals(defaultGlobals) {
+    return Object.assign(
+      {},
+      defaultGlobals,
+        {BACKEND_URL: "http://backend"}
+    );
+  },
+  ...customConfig // this is where your config gets included
+});
+
+```
+
+> [!WARNING]  
+> If you override the `buildSandboxGlobals` function, you should probably include the `BACKEND_URL` like in the example above, since it allows fastboot to find your backend in a docker-compose 
+> setup. 
+

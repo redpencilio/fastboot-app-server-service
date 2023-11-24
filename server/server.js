@@ -1,4 +1,19 @@
 const FastbootAppServer = require('fastboot-app-server');
+let config;
+try {
+  config = require("/app/fastboot");
+} catch (e) {
+  console.info("No fastboot config found in the app, using default");
+}
+let customConfig = {};
+
+if (config) {
+  if (typeof config === "function") {
+    customConfig = config();
+  } else if (typeof config === "object") {
+    customConfig = config;
+  }
+}
 
 let fastbootAppServer = new FastbootAppServer({
   port: 80,
@@ -25,6 +40,7 @@ let fastbootAppServer = new FastbootAppServer({
       BACKEND_URL: "http://backend",
     });
   },
+  ...customConfig,
 });
 
 fastbootAppServer.start();
