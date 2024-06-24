@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:20
 
 COPY ./server/ /usr/src/app
 RUN cd /usr/src/app/; npm install
