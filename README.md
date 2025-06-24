@@ -18,7 +18,7 @@ Add a Dockerfile with the following contents:
     COPY . .
     RUN ember build --environment production
 
-    FROM redpencil/fastboot-app-server:1.1.0
+    FROM redpencil/fastboot-app-server:1.3.0
     COPY --from=builder /app/dist /app
 ```
 
