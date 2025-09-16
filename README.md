@@ -17,6 +17,7 @@ Add a Dockerfile with the following contents:
     RUN npm install
     COPY . .
     RUN ember build --environment production
+    RUN cd dist && npm install
 
     FROM redpencil/fastboot-app-server:1.3.0
     COPY --from=builder /app/dist /app
@@ -239,6 +240,7 @@ module.exports = function () {
   RUN npm install
   COPY . .
   RUN ember build --environment production
+  RUN cd dist && npm install
 
   FROM redpencil/fastboot-app-server
   COPY --from=builder /app/dist /app
